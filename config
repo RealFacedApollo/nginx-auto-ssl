@@ -1,0 +1,43 @@
+ngx_addon_name=ngx_http_auto_ssl_module
+
+ngx_auto_ssl_curl_libs="-lcurl"
+ngx_auto_ssl_curl_cflags=""
+
+if pkg-config --exists libcurl 2>/dev/null; then
+    ngx_auto_ssl_curl_libs="`pkg-config --libs libcurl`"
+    ngx_auto_ssl_curl_cflags="`pkg-config --cflags libcurl`"
+elif which curl-config >/dev/null 2>&1; then
+    ngx_auto_ssl_curl_libs="`curl-config --libs`"
+    ngx_auto_ssl_curl_cflags="`curl-config --cflags`"
+fi
+
+if which curl-config >/dev/null 2>&1; then
+    if ! curl-config --features 2>/dev/null | grep -qi asynchdns; then
+        cat >&2 <<'END'
+ngx_http_auto_ssl_module requires libcurl with an asynchronous resolver
+(AsynchDNS). The detected libcurl would block nginx workers during
+backend name resolution. Rebuild libcurl with the threaded resolver or
+c-ares, or point curl-config at such a build.
+END
+        exit 1
+    fi
+else
+    echo "$0: warning: curl-config not found; cannot verify that libcurl supports AsynchDNS" >&2
+fi
+
+CFLAGS="$CFLAGS $ngx_auto_ssl_curl_cflags"
+
+if test -n "$ngx_module_link"; then
+    ngx_module_type=HTTP
+    ngx_module_name=ngx_http_auto_ssl_module
+    ngx_module_srcs="$ngx_addon_dir/src/ngx_http_auto_ssl_module.c $ngx_addon_dir/src/ngx_http_auto_ssl_fetch.c $ngx_addon_dir/src/ngx_http_auto_ssl_curl.c $ngx_addon_dir/src/ngx_http_auto_ssl_cache.c $ngx_addon_dir/src/ngx_http_auto_ssl_ssl.c $ngx_addon_dir/src/ngx_http_auto_ssl_tar.c"
+    ngx_module_incs=
+    ngx_module_deps="$ngx_addon_dir/src/ngx_http_auto_ssl_fetch.h $ngx_addon_dir/src/ngx_http_auto_ssl_curl.h $ngx_addon_dir/src/ngx_http_auto_ssl_cache.h $ngx_addon_dir/src/ngx_http_auto_ssl_ssl.h $ngx_addon_dir/src/ngx_http_auto_ssl_tar.h"
+    ngx_module_libs="$ngx_auto_ssl_curl_libs -lz"
+
+    . auto/module
+else
+    HTTP_MODULES="$HTTP_MODULES ngx_http_auto_ssl_module"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/src/ngx_http_auto_ssl_module.c $ngx_addon_dir/src/ngx_http_auto_ssl_fetch.c $ngx_addon_dir/src/ngx_http_auto_ssl_curl.c $ngx_addon_dir/src/ngx_http_auto_ssl_cache.c $ngx_addon_dir/src/ngx_http_auto_ssl_ssl.c $ngx_addon_dir/src/ngx_http_auto_ssl_tar.c"
+    CORE_LIBS="$CORE_LIBS $ngx_auto_ssl_curl_libs -lz"
+fi

@@ -1,0 +1,35 @@
+load_module modules/ngx_http_auto_ssl_module.so;
+
+events {}
+
+http {
+    certmate_url https://certmate.luckynetwork.net;                     # Mandatory: The URL of the Certmate API server
+    certmate_api_token_file /run/secrets/certmate_token;                # Mandatory: The path to a file containing the Certmate API token
+
+    auto_ssl_cache_ttl 1d;                  # Optional: How long a fetched certificate is served from cache
+    auto_ssl_cache_refresh_interval 1m;     # Optional: How often the worker scans for entries due for background refresh
+    auto_ssl_cache_max_stale 7d;            # Optional: How long past TTL a stale entry is still served while refreshes fail
+    auto_ssl_cache_negative_ttl 1m;         # Optional: How long a failed fetch suppresses retries for that domain
+    auto_ssl_cache_expiry_interval 1h;      # Optional: How often the worker scans cached certificates for upcoming expiry
+    auto_ssl_cache_expiry_before 24h;       # Optional: Refresh any certificate expiring within this window, regardless of TTL state
+
+    server {
+        listen 443 ssl;
+
+        ssl_certificate_from_certmate luckynetwork.net;
+
+        location / {
+            return 200 "ok\n";
+        }
+    }
+
+    server {
+        listen 8443 ssl;
+
+        ssl_certificate_from_certmate luckynetwork.id;
+
+        location / {
+            return 200 "ok\n";
+        }
+    }
+}
