@@ -29,10 +29,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase image name
+        id: repo
+        run: |
+          echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ steps.repo.outputs.name }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
@@ -64,7 +69,8 @@ jobs:
       - name: Boot image against dead backend
         run: |
           set -eu
-          img="ghcr.io/${{ github.repository }}:sha-${GITHUB_SHA::7}"
+          repo="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          img="ghcr.io/${repo}:sha-${GITHUB_SHA::7}"
           docker pull "$img"
           docker run -d --name smoke -p 8443:443 \
             -e CERTMATE_URL=http://127.0.0.1:9 \
